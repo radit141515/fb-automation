@@ -1,0 +1,935 @@
+{
+  "name": "WF-B | FB Publisher with AI Video (Every 1h)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "id": "582fd75d-485b-4835-a1ed-5b72650fffeb",
+      "name": "Schedule_Every_1h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        208
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "c54479a1-95ec-40d3-b5d5-55dae3bb1c78",
+      "name": "Manual_Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1nqnMTILg5ClUNW4ZxhvzUegaeBlaNCO23dl2PaSCa1k",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Content Plan",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1nqnMTILg5ClUNW4ZxhvzUegaeBlaNCO23dl2PaSCa1k/edit#gid=0"
+        },
+        "options": {}
+      },
+      "id": "ada19992-f719-4296-82c6-7e915b030c31",
+      "name": "Google_Sheets_Read_Ready",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        272,
+        208
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "RJW2GUPdyGj0O88f",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "check-ready-row",
+              "leftValue": "={{ $json['Row ID'] }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "987359f9-f88c-4656-a0e3-ec39b0fb1fd5",
+      "name": "IF_Has_Ready_Post",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        528,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const sheetRecord = $json;\n\nconst contentIdea = sheetRecord['Content Idea'] || '';\nconst topic = sheetRecord['Topic'] || '';\nconst service = sheetRecord['Service'] || '';\nconst cta = sheetRecord['CTA'] || '';\nconst link = sheetRecord['Link'] || '';\nconst platform = sheetRecord['Platform'] || 'facebook';\nconst rowId = sheetRecord['Row ID'] || '';\nconst seoKeywords = sheetRecord['SEO Keywords'] || '';\n\nconst scriptPrompt = `You are a professional social media copywriter and SEO specialist.\n\nTRENDING TOPIC: ${topic}\nCONTENT IDEA: ${contentIdea}\nSERVICE: ${service}\nCTA: ${cta}\nSEO KEYWORDS TO USE: ${seoKeywords}\n\nWrite a Facebook post SCRIPT structured for maximum SEO and engagement:\n\n1. HOOK: First sentence MUST begin with \"${topic}\" \u2014 use a bold question or shocking statement.\n2. PROBLEM: 2 sentences about the real pain point. Naturally include 2 SEO keywords from [${seoKeywords}].\n3. SOLUTION: 2 sentences showing how \"${service}\" solves this. Use 2 more SEO keywords.\n4. CTA: Use EXACTLY this text: \"${cta}\"\n\nSEO REQUIREMENTS:\n- \"${topic}\" keyword appears minimum 3 times total\n- Use at least 4 of these keywords naturally: ${seoKeywords}\n- Max 150 words\n- Output ONLY the script. No section labels. No headings. No preamble.`;\n\nconst imagePrompt = `${topic}, ${service}, ${contentIdea}, ultra-realistic professional photography, 4K high resolution, vibrant dynamic composition, cinematic lighting, trending 2026 aesthetic, social media ready, wide angle, no text overlay, no watermark, photorealistic`;\n\nreturn [{\n  script_prompt: scriptPrompt,\n  content_idea: contentIdea,\n  topic: topic,\n  service: service,\n  cta: cta,\n  link: link,\n  platform: platform,\n  row_id: rowId,\n  seo_keywords: seoKeywords,\n  image_prompt: imagePrompt,\n  sheet_row: sheetRecord\n}];"
+      },
+      "id": "fbec9c37-8eb2-4d90-bce3-5733bc07a8ce",
+      "name": "Build_SEO_Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        784,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {
+          "temperature": 0.5
+        }
+      },
+      "id": "108aac8c-9a98-4bde-b1fa-34303f11828c",
+      "name": "Groq_Chat_Model_Script",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        448
+      ],
+      "credentials": {
+        "groqApi": {
+          "id": "QbELMu2DDR6tsFVy",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.script_prompt }}",
+        "options": {}
+      },
+      "id": "6975c6ca-3f7a-438e-8f0d-98401c2e624d",
+      "name": "AI_Agent_Generate_Script",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        1040,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst script = (\n  item.output ||\n  item.message?.content ||\n  item.choices?.[0]?.message?.content ||\n  item.text ||\n  'Script generation failed'\n).trim();\n\nconst promptData = $('Build_SEO_Prompt').first().json;\n\nconst topicHashtag = (promptData.topic || '').replace(/\\s+/g, '');\nconst keywordHashtags = (promptData.seo_keywords || '')\n  .split(',')\n  .map(k => '#' + k.trim().replace(/\\s+/g, ''))\n  .join(' ');\n\nconst postPrompt = `You are a Facebook SEO content specialist and viral copywriter.\n\nTRENDING TOPIC: ${promptData.topic}\nCONTENT IDEA: ${promptData.content_idea}\nSERVICE: ${promptData.service}\nCTA: ${promptData.cta}\nLINK: ${promptData.link || '[add your link]'}\nPRIMARY KEYWORD: ${promptData.topic}\nSEO KEYWORDS: ${promptData.seo_keywords}\n\nBased on this script:\n${script}\n\nWrite a highly SEO-optimized Facebook post. Follow this EXACT structure:\n\nLine 1 (HOOK): MUST start with \"${promptData.topic}\" in the first 3 words. Use a question or bold emotional statement that stops the scroll.\nLines 2-4 (BODY): Expand on the pain point and insight. Use SEO keywords NATURALLY \u2014 never forced. Each sentence should provide real value.\nLines 5-6 (SOLUTION): How \"${promptData.service}\" addresses this trend. Include 2+ additional SEO keywords.\nLine 7 (CTA): Use EXACTLY: ${promptData.cta}\nLine 8 (LINK): ${promptData.link || '[your link]'}\nLine 9 (HASHTAGS): Exactly 10 hashtags \u2014 include: #${topicHashtag} ${keywordHashtags} plus 3 broad reach tags like #Trending #Viral #MustRead\n\nSEO REQUIREMENTS:\n- \"${promptData.topic}\" appears MINIMUM 3 times in the body (not counting hashtags)\n- Use minimum 5 of these keywords naturally: ${promptData.seo_keywords}\n- Total word count: 180-220 words (Facebook's sweet spot for reach)\n- Use 5-7 relevant emojis placed for maximum visual scanning\n- Hashtags on the LAST line only\n- Output ONLY the post text. No labels. No preamble. No explanation.`;\n\nreturn [{\n  generated_script: script,\n  post_prompt: postPrompt,\n  image_prompt: promptData.image_prompt,\n  content_idea: promptData.content_idea,\n  topic: promptData.topic,\n  service: promptData.service,\n  cta: promptData.cta,\n  link: promptData.link,\n  platform: promptData.platform,\n  row_id: promptData.row_id,\n  seo_keywords: promptData.seo_keywords,\n  sheet_row: promptData.sheet_row\n}];"
+      },
+      "id": "aee2f612-5cd0-432c-8ff6-f2509f0401f1",
+      "name": "Extract_Script_Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1312,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {
+          "temperature": 0.6
+        }
+      },
+      "id": "aee6c641-5e5a-4ceb-961f-9b0eb1114f3c",
+      "name": "Groq_Chat_Model_Post",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1568,
+        448
+      ],
+      "credentials": {
+        "groqApi": {
+          "id": "QbELMu2DDR6tsFVy",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.post_prompt }}",
+        "options": {}
+      },
+      "id": "579e6f31-c880-45d4-a68a-9ad73daca898",
+      "name": "AI_Agent_Generate_SEO_Post",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        1568,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst postCopy = (\n  item.output ||\n  item.message?.content ||\n  item.choices?.[0]?.message?.content ||\n  item.text ||\n  'Post generation failed'\n).trim();\n\nconst scriptData = $('Extract_Script_Output').first().json;\n\nreturn [{\n  generated_post: postCopy,\n  generated_script: scriptData.generated_script,\n  image_prompt: scriptData.image_prompt,\n  content_idea: scriptData.content_idea,\n  topic: scriptData.topic,\n  service: scriptData.service,\n  cta: scriptData.cta,\n  link: scriptData.link,\n  platform: scriptData.platform,\n  row_id: scriptData.row_id,\n  seo_keywords: scriptData.seo_keywords,\n  sheet_row: scriptData.sheet_row\n}];"
+      },
+      "id": "e36c7b6b-d946-4eb8-89ac-2f7af7221d2e",
+      "name": "Extract_Post_Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1824,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ 'https://image.pollinations.ai/prompt/' + encodeURIComponent($json.image_prompt) + '&width=1024&height=1024&nologo=true&enhance=true&model=flux' }}",
+        "options": {
+          "lowercaseHeaders": true,
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 90000
+        }
+      },
+      "id": "d2a2a008-fe88-4d31-b3ea-5cad52693e81",
+      "name": "Image_API_Generate_Design",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2080,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v25.0/1080521918476768/photos",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "message",
+              "value": "={{ $('Extract_Post_Output').first().json.generated_post }}"
+            },
+            {
+              "name": "access_token",
+              "value": "EAAUtJ1Ey3zsBROpTGCKRdSMVPQpiMNidJ1e8uAoABDjEx8ZAR0XeSZA2SdOyDuWVfneGvxQjdbOZAlHZAOHurEZAivrcFTsAFlDi5OXPFfcOS07kAhinKAZBAtwkp9qecZAMqDJNSeFms6suQVkV3NaREZCnTiyW4mUX8LRM19lI7vKGBnIthrvJOSjRbSP9yUtSmWiPcPRZA"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "source",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "b9ea8bcb-9162-408b-b2d3-35893b1f4d9f",
+      "name": "Facebook_Publish_Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2560,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "name": "={{ $('Extract_Post_Output').first().json.topic.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30) + '_' + new Date().toISOString().split('T')[0] + '.png' }}",
+        "driveId": {
+          "mode": "list",
+          "value": "root"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1Kh2jIUe5yEHMlJU2oyqvnTFnB8Ywiu8Z",
+          "mode": "id"
+        },
+        "options": {
+          "keepRevisionForever": false
+        }
+      },
+      "id": "8a87e654-a77d-4086-b172-eac0918f0fd8",
+      "name": "Google_Drive_Upload_Design",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2320,
+        208
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "iyj2jh22ZmZFs10E",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "55ee4c29-b5fb-4043-9bdd-f09dfd6470d3",
+      "name": "Merge_Video_and_Drive",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        2800,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1nqnMTILg5ClUNW4ZxhvzUegaeBlaNCO23dl2PaSCa1k",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Content Plan",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1nqnMTILg5ClUNW4ZxhvzUegaeBlaNCO23dl2PaSCa1k/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Status": "Posted",
+            "Posted Date": "={{ new Date().toLocaleDateString('en-US') }}",
+            "Posted Time": "={{ new Date(Date.now() + 6 * 60 * 60 * 1000).toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit', hour12: true}) }}",
+            "Facebook Post ID": "={{ $('Facebook_Publish_Video').first().json.id }}",
+            "Drive File ID": "={{ $('Google_Drive_Upload_Design').first().json.id }}",
+            "Drive Link": "={{ 'https://drive.google.com/file/d/' + $('Google_Drive_Upload_Design').first().json.id }}",
+            "row_number": 0,
+            "Row ID": "={{ $('Build_SEO_Prompt').first().json.row_id }}",
+            "Facebook Video ID": "={{ $('Facebook_Publish_Video').first().json.id }}"
+          },
+          "matchingColumns": [
+            "Row ID"
+          ],
+          "schema": [
+            {
+              "id": "Row ID",
+              "displayName": "Row ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Content Idea",
+              "displayName": "Content Idea",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Topic",
+              "displayName": "Topic",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Service",
+              "displayName": "Service",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "CTA",
+              "displayName": "CTA",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Link",
+              "displayName": "Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Platform",
+              "displayName": "Platform",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "SEO Keywords",
+              "displayName": "SEO Keywords",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Batch Date",
+              "displayName": "Batch Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Posted Date",
+              "displayName": "Posted Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Posted Time",
+              "displayName": "Posted Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Facebook Post ID",
+              "displayName": "Facebook Post ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Drive File ID",
+              "displayName": "Drive File ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Drive Link",
+              "displayName": "Drive Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "cf7faf7a-3b4c-458d-97e3-74eaf7cc8edf",
+      "name": "Google_Sheets_Mark_as_Posted",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        3040,
+        208
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "RJW2GUPdyGj0O88f",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "6293158671",
+        "text": "=\u2705 *Video + Post Published to Facebook!*\n\n\ud83d\udccc *Topic:* {{ $('Build_SEO_Prompt').first().json.topic }}\n\ud83c\udd94 *Row ID:* {{ $('Build_SEO_Prompt').first().json.row_id }}\n\ud83c\udfac *Video:* AI-generated 6-sec clip (HuggingFace)\n\ud83d\udd50 *Posted at:* {{ new Date().toLocaleString('en-US') }}\n\ud83d\udcd8 *FB Video ID:* {{ $('Facebook_Publish_Video').first().json.id }}\n\ud83d\uddbc *Image (Drive):* https://drive.google.com/file/d/{{ $('Google_Drive_Upload_Design').first().json.id }}\n\n\ud83d\udcdd *Post Preview:*\n_{{ $('Extract_Post_Output').first().json.generated_post.substring(0, 280) }}..._",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "6fce98b8-269e-4830-a74a-cac5f6c03bcd",
+      "name": "Telegram_Success_Notification",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3280,
+        208
+      ],
+      "webhookId": "46f2c10e-7dbd-476a-890c-716dc0acd44e",
+      "credentials": {
+        "telegramApi": {
+          "id": "f3W2iu5XPvJ6dbRk",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "6293158671",
+        "text": "=\u26a0\ufe0f *FB Publisher \u2013 No Ready Posts*\n\nNo rows with Status `Ready` found in Google Sheets.\n\n\ud83d\udd04 Pipeline A (Trend Collector) will add new trends in the next 12-hour cycle.\n\ud83d\udd50 Checked at: {{ new Date().toLocaleString('en-US') }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "e0ac8bab-cd17-43b5-b971-00906a943318",
+      "name": "Telegram_No_Ready_Posts",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        784,
+        432
+      ],
+      "webhookId": "95054eb0-c090-4956-a893-da6f7a8dec9c",
+      "credentials": {
+        "telegramApi": {
+          "id": "f3W2iu5XPvJ6dbRk",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Read ALL items from the sheet\nconst allItems = $input.all();\n\n// Keep ONLY rows where Status is exactly 'Ready'\nconst readyItems = allItems.filter(item =>\n  (item.json['Status'] || '').trim() === 'Ready'\n);\n\n// Nothing ready \u2014 return a sentinel so IF_Has_Ready_Post routes to the Telegram alert\nif (readyItems.length === 0) {\n  return [{ json: { 'Row ID': '', 'Content Idea': '', '_no_ready': true } }];\n}\n\n// \u2705 Return ONLY the FIRST ready row \u2014 one post per hourly run\nreturn [readyItems[0]];"
+      },
+      "id": "pick-ready-001",
+      "name": "Filter_Pick_First_Ready_Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        208
+      ],
+      "notes": "FIX: Filters all rows for Status=Ready then picks only item[0]. Prevents row-1 repeat bug."
+    },
+    {
+      "id": "video-prompt-001",
+      "name": "Build_Video_Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        500
+      ],
+      "parameters": {
+        "jsCode": "// Pull context from Extract_Post_Output (single item at this point)\nconst data = $('Extract_Post_Output').first().json;\n\nconst topic   = (data.topic   || 'trending topic').trim();\nconst service = (data.service || 'modern solution').trim();\nconst idea    = (data.content_idea || '').trim();\nconst seo     = (data.seo_keywords || '').split(',').slice(0,3).map(k=>k.trim()).join(', ');\n\n// Cinematic 8-second video prompt \u2014 short, visual, action-driven\nconst videoPrompt = [\n  `Cinematic 4K footage: ${topic}.`,\n  `Visual story about ${idea}.`,\n  `Showcasing ${service} in action.`,\n  `Fast-paced dynamic cuts, vibrant colours, trending 2026 aesthetic.`,\n  `${seo}.`,\n  `Ultra-realistic, no text, no watermark, social media ready short video clip.`\n].join(' ');\n\nreturn [{\n  video_prompt: videoPrompt,\n  topic:   data.topic,\n  row_id:  data.row_id,\n  generated_post: data.generated_post\n}];"
+      },
+      "notes": "Builds a cinematic text-to-video prompt from topic/service/idea. Runs in parallel with image generation."
+    },
+    {
+      "id": "video-api-001",
+      "name": "HuggingFace_Generate_Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2320,
+        500
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api-inference.huggingface.co/models/damo-vilab/text-to-video-ms-1.7b",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer hf_YOUR_HUGGINGFACE_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"inputs\": \"{{ $json.video_prompt }}\",\n  \"parameters\": {\n    \"num_frames\": 24,\n    \"num_inference_steps\": 25,\n    \"fps\": 4\n  }\n}",
+        "options": {
+          "lowercaseHeaders": true,
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 180000
+        }
+      },
+      "notes": "\u26a0\ufe0f Get your FREE token at https://huggingface.co/settings/tokens (free account).\nModel: damo-vilab/text-to-video-ms-1.7b \u2014 free, no credit card.\nnum_frames=24 @ fps=4 = 6-second video. Timeout=180s for cold starts.\nReturns binary MP4 in the 'data' field."
+    },
+    {
+      "id": "fb-video-001",
+      "name": "Facebook_Publish_Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2560,
+        80
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v25.0/1080521918476768/videos",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "description",
+              "value": "={{ $('Extract_Post_Output').first().json.generated_post }}"
+            },
+            {
+              "name": "access_token",
+              "value": "EAAUtJ1Ey3zsBROpTGCKRdSMVPQpiMNidJ1e8uAoABDjEx8ZAR0XeSZA2SdOyDuWVfneGvxQjdbOZAlHZAOHurEZAivrcFTsAFlDi5OXPFfcOS07kAhinKAZBAtwkp9qecZAMqDJNSeFms6suQVkV3NaREZCnTiyW4mUX8LRM19lI7vKGBnIthrvJOSjRbSP9yUtSmWiPcPRZA"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "source",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "notes": "Posts the AI-generated MP4 video to Facebook Page with full SEO post text as description. Video = reel-style short clip."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule_Every_1h": {
+      "main": [
+        [
+          {
+            "node": "Google_Sheets_Read_Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual_Trigger": {
+      "main": [
+        [
+          {
+            "node": "Google_Sheets_Read_Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google_Sheets_Read_Ready": {
+      "main": [
+        [
+          {
+            "node": "Filter_Pick_First_Ready_Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF_Has_Ready_Post": {
+      "main": [
+        [
+          {
+            "node": "Build_SEO_Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram_No_Ready_Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build_SEO_Prompt": {
+      "main": [
+        [
+          {
+            "node": "AI_Agent_Generate_Script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq_Chat_Model_Script": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI_Agent_Generate_Script",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI_Agent_Generate_Script": {
+      "main": [
+        [
+          {
+            "node": "Extract_Script_Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract_Script_Output": {
+      "main": [
+        [
+          {
+            "node": "AI_Agent_Generate_SEO_Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq_Chat_Model_Post": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI_Agent_Generate_SEO_Post",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI_Agent_Generate_SEO_Post": {
+      "main": [
+        [
+          {
+            "node": "Extract_Post_Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract_Post_Output": {
+      "main": [
+        [
+          {
+            "node": "Image_API_Generate_Design",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build_Video_Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image_API_Generate_Design": {
+      "main": [
+        [
+          {
+            "node": "Google_Drive_Upload_Design",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google_Drive_Upload_Design": {
+      "main": [
+        [
+          {
+            "node": "Merge_Video_and_Drive",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge_FB_and_Drive": {
+      "main": [
+        [
+          {
+            "node": "Google_Sheets_Mark_as_Posted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google_Sheets_Mark_as_Posted": {
+      "main": [
+        [
+          {
+            "node": "Telegram_Success_Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter_Pick_First_Ready_Row": {
+      "main": [
+        [
+          {
+            "node": "IF_Has_Ready_Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build_Video_Prompt": {
+      "main": [
+        [
+          {
+            "node": "HuggingFace_Generate_Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HuggingFace_Generate_Video": {
+      "main": [
+        [
+          {
+            "node": "Facebook_Publish_Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Facebook_Publish_Video": {
+      "main": [
+        [
+          {
+            "node": "Merge_Video_and_Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge_Video_and_Drive": {
+      "main": [
+        [
+          {
+            "node": "Google_Sheets_Mark_as_Posted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "8a95ce6b-98f6-468a-8d9e-3eebff4f8369",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "560ce70c9618bc0dfeb47ee2adfbec1a6e10600f30ffd50d7c550ed11d295521"
+  },
+  "id": "t5hLgnDJpVYzUAk4",
+  "tags": [
+    {
+      "updatedAt": "2026-05-08T10:11:23.270Z",
+      "createdAt": "2026-05-08T10:11:23.270Z",
+      "id": "Cpnj6ZG5shSfxOAg",
+      "name": "fb-publisher"
+    },
+    {
+      "updatedAt": "2026-05-08T10:07:07.138Z",
+      "createdAt": "2026-05-08T10:07:07.138Z",
+      "id": "oWc3owpmK3bcSpcn",
+      "name": "v9"
+    }
+  ]
+}
